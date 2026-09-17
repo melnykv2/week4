@@ -1,0 +1,34 @@
+---
+- name: Install Gunicorn systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/{{ app_service_name }}.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Healthchecks Django application
+      After=network.target
+
+      [Service]
+      Type=simple
+      User={{ app_user }}
+      Group={{ app_group }}
+      WorkingDirectory={{ app_dir }}/src
+      EnvironmentFile={{ app_dir }}/.env
+      ExecStart={{ venv_dir }}/bin/gunicorn hc.wsgi:application --bind {{ app_bind }} --workers {{ gunicorn_workers }}
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+  notify:
+    - Reload systemd
+    - Restart application
+
+- name: Ensure application service is enabled and running
+  ansible.builtin.systemd:
+    name: "{{ app_service_name }}"
+    state: started
+    enabled: true
+    daemon_reload: true

@@ -1,0 +1,32 @@
+---
+- name: Run Django migrations
+  ansible.builtin.command:
+    cmd: "{{ venv_dir }}/bin/python manage.py migrate --noinput"
+    chdir: "{{ app_dir }}/src"
+  become_user: "{{ app_user }}"
+  environment:
+    DJANGO_SETTINGS_MODULE: hc.settings
+    SECRET_KEY: "{{ django_secret_key }}"
+    DB: postgres
+    DB_HOST: "{{ db_host }}"
+    DB_PORT: "{{ db_port }}"
+    DB_NAME: "{{ db_name }}"
+    DB_USER: "{{ db_user }}"
+    DB_PASSWORD: "{{ db_password }}"
+  no_log: true
+
+- name: Collect Django static files
+  ansible.builtin.command:
+    cmd: "{{ venv_dir }}/bin/python manage.py collectstatic --noinput"
+    chdir: "{{ app_dir }}/src"
+  become_user: "{{ app_user }}"
+  environment:
+    DJANGO_SETTINGS_MODULE: hc.settings
+    SECRET_KEY: "{{ django_secret_key }}"
+    DB: postgres
+    DB_HOST: "{{ db_host }}"
+    DB_PORT: "{{ db_port }}"
+    DB_NAME: "{{ db_name }}"
+    DB_USER: "{{ db_user }}"
+    DB_PASSWORD: "{{ db_password }}"
+  no_log: true

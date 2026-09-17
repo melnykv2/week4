@@ -1,0 +1,3 @@
+---
+# Values expected from Terraform-generated inventory.
+# They are intentionally kept separate from role defaults so the role can be reused.

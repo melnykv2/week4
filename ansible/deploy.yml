@@ -1,0 +1,8 @@
+---
+- name: Deploy Django application
+  hosts: webservers
+  become: true
+  gather_facts: true
+  connection: amazon.aws.aws_ssm
+  roles:
+    - deploy

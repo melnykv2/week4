@@ -1,0 +1,13 @@
+---
+- name: Install PostgreSQL and Ansible PostgreSQL dependencies
+  ansible.builtin.apt:
+    name: "{{ postgres_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure PostgreSQL is enabled and running
+  ansible.builtin.service:
+    name: "{{ postgres_service_name }}"
+    state: started
+    enabled: true

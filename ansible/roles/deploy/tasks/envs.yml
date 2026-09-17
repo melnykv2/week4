@@ -1,0 +1,20 @@
+---
+- name: Read database password from SSM Parameter Store
+  ansible.builtin.set_fact:
+    db_password: "{{ lookup('amazon.aws.ssm_parameter', db_password_parameter, decrypt=true, region=ansible_aws_ssm_region) }}"
+  no_log: true
+
+- name: Read Django secret key from SSM Parameter Store
+  ansible.builtin.set_fact:
+    django_secret_key: "{{ lookup('amazon.aws.ssm_parameter', django_secret_parameter, decrypt=true, region=ansible_aws_ssm_region) }}"
+  no_log: true
+
+- name: Create application environment file
+  ansible.builtin.template:
+    src: app.env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0600"
+  no_log: true
+  notify: Restart application

@@ -1,0 +1,59 @@
+---
+- name: Discover PostgreSQL configuration files
+  ansible.builtin.find:
+    paths: "{{ postgres_conf_root }}"
+    patterns:
+      - postgresql.conf
+      - pg_hba.conf
+    recurse: true
+  register: postgres_config_files
+
+- name: Set PostgreSQL configuration paths
+  ansible.builtin.set_fact:
+    postgresql_conf: "{{ (postgres_config_files.files | selectattr('path', 'search', '/postgresql.conf$') | map(attribute='path') | list | first) }}"
+    pg_hba_conf: "{{ (postgres_config_files.files | selectattr('path', 'search', '/pg_hba.conf$') | map(attribute='path') | list | first) }}"
+
+- name: Listen on private interfaces
+  ansible.builtin.lineinfile:
+    path: "{{ postgresql_conf }}"
+    regexp: '^#?listen_addresses\s*='
+    line: "listen_addresses = '{{ postgres_listen_addresses }}'"
+  notify: Restart PostgreSQL
+
+- name: Allow private subnet 1 to access PostgreSQL
+  ansible.builtin.lineinfile:
+    path: "{{ pg_hba_conf }}"
+    insertafter: EOF
+    line: "host {{ db_name }} {{ db_user }} {{ private_subnet_1 }} scram-sha-256"
+  notify: Restart PostgreSQL
+
+- name: Allow private subnet 2 to access PostgreSQL
+  ansible.builtin.lineinfile:
+    path: "{{ pg_hba_conf }}"
+    insertafter: EOF
+    line: "host {{ db_name }} {{ db_user }} {{ private_subnet_2 }} scram-sha-256"
+  notify: Restart PostgreSQL
+
+- name: Read DB password from SSM Parameter Store
+  ansible.builtin.set_fact:
+    db_password: "{{ lookup('amazon.aws.ssm_parameter', db_password_parameter, decrypt=true, region=ansible_aws_ssm_region) }}"
+  no_log: true
+
+- name: Create PostgreSQL user
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    encrypted: true
+    state: present
+  no_log: true
+
+- name: Create application database
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ db_name }}"
+    owner: "{{ db_user }}"
+    state: present
+
+- name: Flush PostgreSQL restart
+  ansible.builtin.meta: flush_handlers

@@ -1,0 +1,11 @@
+---
+- name: Ensure Nginx is installed
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+
+- name: Ensure Nginx is enabled and running
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true

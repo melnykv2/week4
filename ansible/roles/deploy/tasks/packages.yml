@@ -1,0 +1,28 @@
+---
+- name: Install application dependencies
+  ansible.builtin.apt:
+    name:
+      - git
+      - libpq-dev
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade pip in application virtualenv
+  ansible.builtin.pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ venv_dir }}"
+  become_user: "{{ app_user }}"
+
+- name: Install Django requirements
+  ansible.builtin.pip:
+    requirements: "{{ app_dir }}/src/requirements.txt"
+    virtualenv: "{{ venv_dir }}"
+  become_user: "{{ app_user }}"
+
+- name: Install Gunicorn
+  ansible.builtin.pip:
+    name: gunicorn
+    virtualenv: "{{ venv_dir }}"
+  become_user: "{{ app_user }}"

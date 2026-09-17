@@ -1,0 +1,43 @@
+---
+- name: Install deployment packages
+  ansible.builtin.include_tasks: packages.yml
+
+- name: Update application code
+  ansible.builtin.git:
+    repo: "{{ app_repo_url }}"
+    dest: "{{ app_dir }}/src"
+    version: "{{ app_branch }}"
+    update: true
+    force: false
+  become_user: "{{ app_user }}"
+
+- name: Configure application environment
+  ansible.builtin.include_tasks: envs.yml
+
+- name: Configure Nginx
+  ansible.builtin.copy:
+    src: nginx.conf
+    dest: /etc/nginx/sites-available/healthchecks
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload Nginx
+
+- name: Enable application Nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/healthchecks
+    dest: /etc/nginx/sites-enabled/healthchecks
+    state: link
+  notify: Reload Nginx
+
+- name: Remove default Nginx site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload Nginx
+
+- name: Run migrations and collect static files
+  ansible.builtin.include_tasks: migration.yml
+
+- name: Start application server
+  ansible.builtin.include_tasks: run-server.yml

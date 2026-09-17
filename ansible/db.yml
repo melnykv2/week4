@@ -1,0 +1,8 @@
+---
+- name: Configure PostgreSQL server
+  hosts: db
+  become: true
+  gather_facts: true
+  connection: amazon.aws.aws_ssm
+  roles:
+    - postgres-setup
