@@ -12,8 +12,6 @@
       - libffi-devel
     state: present
 
-# The `pip` module creates the virtualenv automatically (via virtualenv_command)
-# the first time it doesn't exist, so no separate "create venv" task is needed.
 - name: Ensure pip and wheel are up to date in the application virtualenv
   ansible.builtin.pip:
     name:

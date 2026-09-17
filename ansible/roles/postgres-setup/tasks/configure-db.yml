@@ -33,10 +33,6 @@
 - name: Flush handlers so configuration changes apply before we connect
   ansible.builtin.meta: flush_handlers
 
-# Terraform does not put the web servers' IPs into the inventory directly, but it
-# does put both hosts in the [webservers] group. db.yml gathers facts on that
-# group first, so we can read each app server's private IP from hostvars here
-# instead of ever hardcoding an address.
 - name: Determine application servers' private IP addresses
   ansible.builtin.set_fact:
     webserver_private_ips: "{{ groups['webservers'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | select('string') | list }}"
