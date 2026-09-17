@@ -1,2 +1,3 @@
 ---
-postgres_conf_root: /etc/postgresql
+postgresql_conf: "{{ postgres_data_dir }}/postgresql.conf"
+pg_hba_conf: "{{ postgres_data_dir }}/pg_hba.conf"

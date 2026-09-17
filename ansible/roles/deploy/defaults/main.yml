@@ -1,13 +1,5 @@
 ---
-app_user: healthchecks
-app_group: healthchecks
-app_dir: /opt/healthchecks
-venv_dir: /opt/healthchecks/venv
-app_service_name: healthchecks
-app_bind: 127.0.0.1:8000
 app_repo_url: https://github.com/kaaalim/django-sample-app.git
 app_branch: main
-allowed_hosts: "*"
-site_root: "http://localhost"
-db_port: 5432
+python_venv_python: python3.12
 gunicorn_workers: 2

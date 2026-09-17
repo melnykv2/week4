@@ -1,5 +1,6 @@
 ---
-- name: Run Django migrations
+
+- name: Run Django database migrations
   ansible.builtin.command:
     cmd: "{{ venv_dir }}/bin/python manage.py migrate --noinput"
     chdir: "{{ app_dir }}/src"
@@ -13,6 +14,9 @@
     DB_NAME: "{{ db_name }}"
     DB_USER: "{{ db_user }}"
     DB_PASSWORD: "{{ db_password }}"
+  register: migrate_result
+  changed_when: "'No migrations to apply' not in migrate_result.stdout"
+  run_once: true
   no_log: true
 
 - name: Collect Django static files
@@ -29,4 +33,6 @@
     DB_NAME: "{{ db_name }}"
     DB_USER: "{{ db_user }}"
     DB_PASSWORD: "{{ db_password }}"
+  register: collectstatic_result
+  changed_when: "'0 static files copied' not in collectstatic_result.stdout"
   no_log: true

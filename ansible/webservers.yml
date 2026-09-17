@@ -3,6 +3,5 @@
   hosts: webservers
   become: true
   gather_facts: true
-  connection: amazon.aws.aws_ssm
   roles:
     - webserver-setup

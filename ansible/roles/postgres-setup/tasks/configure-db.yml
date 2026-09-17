@@ -1,49 +1,71 @@
 ---
-- name: Discover PostgreSQL configuration files
-  ansible.builtin.find:
-    paths: "{{ postgres_conf_root }}"
-    patterns:
-      - postgresql.conf
-      - pg_hba.conf
-    recurse: true
-  register: postgres_config_files
+- name: Check whether the PostgreSQL data directory is already initialized
+  ansible.builtin.stat:
+    path: "{{ postgres_data_dir }}/PG_VERSION"
+  register: postgres_data_initialized
 
-- name: Set PostgreSQL configuration paths
-  ansible.builtin.set_fact:
-    postgresql_conf: "{{ (postgres_config_files.files | selectattr('path', 'search', '/postgresql.conf$') | map(attribute='path') | list | first) }}"
-    pg_hba_conf: "{{ (postgres_config_files.files | selectattr('path', 'search', '/pg_hba.conf$') | map(attribute='path') | list | first) }}"
+- name: Initialize the PostgreSQL database cluster
+  ansible.builtin.command:
+    cmd: /usr/bin/postgresql-setup --initdb
+    creates: "{{ postgres_data_dir }}/PG_VERSION"
+  when: not postgres_data_initialized.stat.exists
 
-- name: Listen on private interfaces
+- name: Listen on all interfaces (access is restricted by the AWS security group and pg_hba.conf)
   ansible.builtin.lineinfile:
     path: "{{ postgresql_conf }}"
     regexp: '^#?listen_addresses\s*='
     line: "listen_addresses = '{{ postgres_listen_addresses }}'"
   notify: Restart PostgreSQL
 
-- name: Allow private subnet 1 to access PostgreSQL
+- name: Require modern, salted password authentication
   ansible.builtin.lineinfile:
-    path: "{{ pg_hba_conf }}"
-    insertafter: EOF
-    line: "host {{ db_name }} {{ db_user }} {{ private_subnet_1 }} scram-sha-256"
+    path: "{{ postgresql_conf }}"
+    regexp: '^#?password_encryption\s*='
+    line: "password_encryption = scram-sha-256"
   notify: Restart PostgreSQL
 
-- name: Allow private subnet 2 to access PostgreSQL
-  ansible.builtin.lineinfile:
-    path: "{{ pg_hba_conf }}"
-    insertafter: EOF
-    line: "host {{ db_name }} {{ db_user }} {{ private_subnet_2 }} scram-sha-256"
-  notify: Restart PostgreSQL
+- name: Ensure PostgreSQL is started and enabled
+  ansible.builtin.service:
+    name: "{{ postgres_service_name }}"
+    state: started
+    enabled: true
 
-- name: Read DB password from SSM Parameter Store
+- name: Flush handlers so configuration changes apply before we connect
+  ansible.builtin.meta: flush_handlers
+
+# Terraform does not put the web servers' IPs into the inventory directly, but it
+# does put both hosts in the [webservers] group. db.yml gathers facts on that
+# group first, so we can read each app server's private IP from hostvars here
+# instead of ever hardcoding an address.
+- name: Determine application servers' private IP addresses
   ansible.builtin.set_fact:
-    db_password: "{{ lookup('amazon.aws.ssm_parameter', db_password_parameter, decrypt=true, region=ansible_aws_ssm_region) }}"
-  no_log: true
+    webserver_private_ips: "{{ groups['webservers'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | select('string') | list }}"
 
-- name: Create PostgreSQL user
+- name: Fail early if application server IPs could not be determined
+  ansible.builtin.assert:
+    that:
+      - webserver_private_ips | length > 0
+    fail_msg: >-
+      Could not determine any webserver private IPs from hostvars. Make sure
+      db.yml's first play (hosts: webservers) ran and gathered facts before
+      this role executes.
+
+- name: Allow each application server to authenticate to PostgreSQL
+  ansible.builtin.lineinfile:
+    path: "{{ pg_hba_conf }}"
+    insertafter: EOF
+    line: "host {{ postgres_db }} {{ postgres_user }} {{ item }}/32 scram-sha-256"
+  loop: "{{ webserver_private_ips }}"
+  notify: Restart PostgreSQL
+
+- name: Flush handlers so pg_hba.conf changes apply before we connect
+  ansible.builtin.meta: flush_handlers
+
+- name: Create application database user
   become_user: postgres
   community.postgresql.postgresql_user:
-    name: "{{ db_user }}"
-    password: "{{ db_password }}"
+    name: "{{ postgres_user }}"
+    password: "{{ postgres_password }}"
     encrypted: true
     state: present
   no_log: true
@@ -51,9 +73,16 @@
 - name: Create application database
   become_user: postgres
   community.postgresql.postgresql_db:
-    name: "{{ db_name }}"
-    owner: "{{ db_user }}"
+    name: "{{ postgres_db }}"
+    owner: "{{ postgres_user }}"
     state: present
 
-- name: Flush PostgreSQL restart
-  ansible.builtin.meta: flush_handlers
+- name: Grant schema privileges to the application user
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    db: "{{ postgres_db }}"
+    state: present
+    type: schema
+    obj: public
+    privs: CREATE,USAGE
+    roles: "{{ postgres_user }}"

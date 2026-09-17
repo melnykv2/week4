@@ -1,3 +1,16 @@
 # webserver-setup
 
-Installs Python, build dependencies and Nginx, creates the application user/virtualenv, and configures Nginx to proxy port 80 to Gunicorn on 127.0.0.1:8000.
+Installs Python 3.12, Git, and Nginx on Amazon Linux 2023; creates the
+`django` system user/group and the `/opt/django-app` directory; starts and
+enables Nginx with the stock welcome page removed.
+
+The actual reverse-proxy configuration (the provided `nginx.conf`) is applied
+by the `deploy` role, since it depends on where the application is deployed —
+see that role's README for why.
+
+## Variables consumed
+
+| Variable | Defined in |
+|---|---|
+| `app_user`, `app_group`, `app_dir` | `group_vars/webservers.yml` |
+| `webserver_packages` | this role's `defaults/main.yml` |

@@ -1,21 +1,30 @@
 ---
-- name: Install application dependencies
-  ansible.builtin.apt:
+- name: Install build dependencies for the application's Python packages
+  ansible.builtin.dnf:
     name:
       - git
-      - libpq-dev
+      - gcc
+      - make
+      - "{{ python_venv_python }}-devel"
+      - libpq-devel
+      - libcurl-devel
+      - openssl-devel
+      - libffi-devel
     state: present
-    update_cache: true
-    cache_valid_time: 3600
 
-- name: Upgrade pip in application virtualenv
+# The `pip` module creates the virtualenv automatically (via virtualenv_command)
+# the first time it doesn't exist, so no separate "create venv" task is needed.
+- name: Ensure pip and wheel are up to date in the application virtualenv
   ansible.builtin.pip:
-    name: pip
+    name:
+      - pip
+      - wheel
     state: latest
     virtualenv: "{{ venv_dir }}"
+    virtualenv_command: "{{ python_venv_python }} -m venv"
   become_user: "{{ app_user }}"
 
-- name: Install Django requirements
+- name: Install the application's Python dependencies
   ansible.builtin.pip:
     requirements: "{{ app_dir }}/src/requirements.txt"
     virtualenv: "{{ venv_dir }}"

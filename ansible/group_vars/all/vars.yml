@@ -1,0 +1,8 @@
+---
+
+postgres_db: djangoapp
+postgres_user: djangoapp
+postgres_port: 5432
+
+postgres_password: "{{ lookup('amazon.aws.ssm_parameter', db_password_parameter, decrypt=true, region=ansible_aws_ssm_region) }}"
+django_secret_key: "{{ lookup('amazon.aws.ssm_parameter', django_secret_parameter, decrypt=true, region=ansible_aws_ssm_region) }}"

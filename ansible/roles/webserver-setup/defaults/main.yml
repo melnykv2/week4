@@ -1,17 +1,6 @@
 ---
 webserver_packages:
   - git
-  - curl
-  - python3
-  - python3-pip
-  - python3-venv
-  - python3-dev
-  - build-essential
-  - libpq-dev
   - nginx
-app_user: healthchecks
-app_group: healthchecks
-app_dir: /opt/healthchecks
-venv_dir: /opt/healthchecks/venv
-app_service_name: healthchecks
-app_bind: 127.0.0.1:8000
+  - python3.12
+  - python3.12-pip

@@ -1,8 +1,11 @@
 ---
+- name: Gather facts from application servers
+  hosts: webservers
+  gather_facts: true
+
 - name: Configure PostgreSQL server
   hosts: db
   become: true
   gather_facts: true
-  connection: amazon.aws.aws_ssm
   roles:
     - postgres-setup

@@ -1,24 +1,22 @@
 ---
-- name: Install application packages
-  ansible.builtin.apt:
+- name: Install web server base packages
+  ansible.builtin.dnf:
     name: "{{ webserver_packages }}"
     state: present
-    update_cache: true
-    cache_valid_time: 3600
 
 - name: Create application group
   ansible.builtin.group:
     name: "{{ app_group }}"
     state: present
 
-- name: Create application user
+- name: Create application system user
   ansible.builtin.user:
     name: "{{ app_user }}"
     group: "{{ app_group }}"
     system: true
     create_home: true
     home: "{{ app_dir }}"
-    shell: /usr/sbin/nologin
+    shell: /sbin/nologin
     state: present
 
 - name: Create application directory
@@ -28,9 +26,3 @@
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
     mode: "0755"
-
-- name: Create Python virtual environment
-  ansible.builtin.command:
-    cmd: "python3 -m venv {{ venv_dir }}"
-    creates: "{{ venv_dir }}/bin/python"
-  become_user: "{{ app_user }}"

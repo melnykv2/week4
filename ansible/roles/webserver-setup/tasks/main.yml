@@ -1,6 +1,6 @@
 ---
-- name: Install Python runtime
+- name: Install Python runtime and application user/directory
   ansible.builtin.include_tasks: python-install.yml
 
-- name: Install Nginx
+- name: Install and bootstrap Nginx
   ansible.builtin.include_tasks: nginx-install.yml
