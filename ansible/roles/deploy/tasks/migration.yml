@@ -19,6 +19,40 @@
   run_once: true
   no_log: true
 
+# The app's settings.py sets COMPRESS_OFFLINE = True (django-compressor),
+# and base.html uses {% compress css/js %}. In offline mode nothing is
+# compiled on the fly -- every page using those blocks raises
+# OfflineGenerationError until this pre-build step has run. The app's own
+# README documents this exact ordering: compress, then collectstatic (so
+# collectstatic also gathers the bundles compress just generated). This
+# writes to local disk like collectstatic, so it must run on every webserver,
+# not just once.
+#
+# Critically, this must also restart Gunicorn: django-compressor loads its
+# offline manifest once and caches it in the worker process's memory, not
+# fresh per request. A worker that started before a valid manifest existed
+# keeps serving OfflineGenerationError forever, even after this task
+# successfully (re)writes the manifest to disk -- until the process
+# actually restarts and loads it fresh. We hit exactly this: one instance
+# kept 500ing after a successful compress run, and only a manual
+# `systemctl restart django-app` fixed it.
+- name: Build offline compressor bundles (CSS/JS)
+  ansible.builtin.command:
+    cmd: "{{ venv_dir }}/bin/python manage.py compress --force"
+    chdir: "{{ app_dir }}/src"
+  become_user: "{{ app_user }}"
+  environment:
+    DJANGO_SETTINGS_MODULE: hc.settings
+    SECRET_KEY: "{{ django_secret_key }}"
+    DB: postgres
+    DB_HOST: "{{ db_host }}"
+    DB_PORT: "{{ db_port }}"
+    DB_NAME: "{{ db_name }}"
+    DB_USER: "{{ db_user }}"
+    DB_PASSWORD: "{{ db_password }}"
+  no_log: true
+  notify: Restart application
+
 - name: Collect Django static files
   ansible.builtin.command:
     cmd: "{{ venv_dir }}/bin/python manage.py collectstatic --noinput"
