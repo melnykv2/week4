@@ -2,6 +2,5 @@
 - name: Configure web servers
   hosts: webservers
   become: true
-  gather_facts: true
   roles:
     - webserver-setup

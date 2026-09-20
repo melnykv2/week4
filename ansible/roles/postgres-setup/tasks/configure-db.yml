@@ -1,84 +1,31 @@
 ---
-- name: Check whether the PostgreSQL data directory is already initialized
-  ansible.builtin.stat:
-    path: "{{ postgres_data_dir }}/PG_VERSION"
-  register: postgres_data_initialized
-
-- name: Initialize the PostgreSQL database cluster
-  ansible.builtin.command:
-    cmd: /usr/bin/postgresql-setup --initdb
-    creates: "{{ postgres_data_dir }}/PG_VERSION"
-  when: not postgres_data_initialized.stat.exists
-
-- name: Listen on all interfaces (access is restricted by the AWS security group and pg_hba.conf)
+- name: Configure PostgreSQL to listen on all interfaces
+  become: true
   ansible.builtin.lineinfile:
-    path: "{{ postgresql_conf }}"
+    path: "{{ postgres_config_dir }}/postgresql.conf"
     regexp: '^#?listen_addresses\s*='
     line: "listen_addresses = '{{ postgres_listen_addresses }}'"
   notify: Restart PostgreSQL
 
-- name: Require modern, salted password authentication
+- name: Allow app instances to connect to PostgreSQL
+  become: true
   ansible.builtin.lineinfile:
-    path: "{{ postgresql_conf }}"
-    regexp: '^#?password_encryption\s*='
-    line: "password_encryption = scram-sha-256"
-  notify: Restart PostgreSQL
+    path: "{{ postgres_config_dir }}/pg_hba.conf"
+    line: "host all all {{ postgres_allowed_cidr }} scram-sha-256"
+  notify: Reload PostgreSQL
 
-- name: Ensure PostgreSQL is started and enabled
-  ansible.builtin.service:
-    name: "{{ postgres_service_name }}"
-    state: started
-    enabled: true
-
-- name: Flush handlers so configuration changes apply before we connect
-  ansible.builtin.meta: flush_handlers
-
-- name: Determine application servers' private IP addresses
-  ansible.builtin.set_fact:
-    webserver_private_ips: "{{ groups['webservers'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | select('string') | list }}"
-
-- name: Fail early if application server IPs could not be determined
-  ansible.builtin.assert:
-    that:
-      - webserver_private_ips | length > 0
-    fail_msg: >-
-      Could not determine any webserver private IPs from hostvars. Make sure
-      db.yml's first play (hosts: webservers) ran and gathered facts before
-      this role executes.
-
-- name: Allow each application server to authenticate to PostgreSQL
-  ansible.builtin.lineinfile:
-    path: "{{ pg_hba_conf }}"
-    insertafter: EOF
-    line: "host {{ postgres_db }} {{ postgres_user }} {{ item }}/32 scram-sha-256"
-  loop: "{{ webserver_private_ips }}"
-  notify: Restart PostgreSQL
-
-- name: Flush handlers so pg_hba.conf changes apply before we connect
-  ansible.builtin.meta: flush_handlers
-
-- name: Create application database user
+- name: Create PostgreSQL database user
   become_user: postgres
   community.postgresql.postgresql_user:
-    name: "{{ postgres_user }}"
-    password: "{{ postgres_password }}"
+    name: "{{ postgres_db_user }}"
+    password: "{{ db_password }}"
     encrypted: true
     state: present
   no_log: true
 
-- name: Create application database
+- name: Create PostgreSQL database
   become_user: postgres
   community.postgresql.postgresql_db:
-    name: "{{ postgres_db }}"
-    owner: "{{ postgres_user }}"
+    name: "{{ postgres_db_name }}"
+    owner: "{{ postgres_db_user }}"
     state: present
-
-- name: Grant schema privileges to the application user
-  become_user: postgres
-  community.postgresql.postgresql_privs:
-    db: "{{ postgres_db }}"
-    state: present
-    type: schema
-    obj: public
-    privs: CREATE,USAGE
-    roles: "{{ postgres_user }}"

@@ -1,34 +1,50 @@
 ---
-- name: Install application systemd unit
+- name: Create systemd service for the app
+  become: true
   ansible.builtin.copy:
-    dest: /etc/systemd/system/{{ app_service_name }}.service
-    owner: root
-    group: root
-    mode: "0644"
+    dest: "/etc/systemd/system/{{ app_service_name }}.service"
     content: |
       [Unit]
       Description=Django application ({{ app_service_name }})
       After=network.target
 
       [Service]
-      Type=simple
       User={{ app_user }}
-      Group={{ app_group }}
-      WorkingDirectory={{ app_dir }}/src
+      WorkingDirectory={{ app_dir }}
       EnvironmentFile={{ app_dir }}/.env
-      ExecStart={{ venv_dir }}/bin/gunicorn hc.wsgi:application --bind {{ app_bind_host }}:{{ app_bind_port }} --workers {{ gunicorn_workers }}
+      ExecStart={{ venv_dir }}/bin/gunicorn hc.wsgi:application --bind {{ app_bind_host }}:{{ app_bind_port }}
       Restart=always
-      RestartSec=5
 
       [Install]
       WantedBy=multi-user.target
-  notify:
-    - Reload systemd
-    - Restart application
+  notify: Restart app service
 
-- name: Ensure application service is enabled and running
-  ansible.builtin.systemd:
+- name: Ensure application service is started and enabled
+  become: true
+  ansible.builtin.systemd_service:
     name: "{{ app_service_name }}"
     state: started
     enabled: true
     daemon_reload: true
+
+- name: Remove default Nginx site
+  become: true
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload Nginx
+
+- name: Copy Nginx configuration
+  become: true
+  ansible.builtin.copy:
+    src: nginx.conf
+    dest: "/etc/nginx/sites-available/{{ app_service_name }}"
+  notify: Reload Nginx
+
+- name: Enable Nginx site
+  become: true
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ app_service_name }}"
+    dest: "/etc/nginx/sites-enabled/{{ app_service_name }}"
+    state: link
+  notify: Reload Nginx

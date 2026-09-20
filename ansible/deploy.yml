@@ -2,6 +2,5 @@
 - name: Deploy Django application
   hosts: webservers
   become: true
-  gather_facts: true
   roles:
     - deploy

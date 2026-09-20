@@ -1,46 +1,15 @@
 ---
-- name: Ensure git is installed
-  ansible.builtin.dnf:
-    name: git
-    state: present
+- name: Install packages
+  ansible.builtin.import_tasks: packages.yml
 
-- name: Ensure application code is cloned
-  ansible.builtin.git:
-    repo: "{{ app_repo_url }}"
-    dest: "{{ app_dir }}/src"
-    version: "{{ app_branch }}"
-    update: false
-  become_user: "{{ app_user }}"
-  register: app_checkout
 
-- name: Update application code from GitHub
-  ansible.builtin.git:
-    repo: "{{ app_repo_url }}"
-    dest: "{{ app_dir }}/src"
-    version: "{{ app_branch }}"
-    update: true
-  become_user: "{{ app_user }}"
-  when: not app_checkout.changed
-  register: app_update
-  notify: Restart application
+- name: Generate env file
+  ansible.builtin.import_tasks: envs.yml
 
-- name: Install application dependencies
-  ansible.builtin.include_tasks: packages.yml
 
-- name: Configure application environment
-  ansible.builtin.include_tasks: envs.yml
+- name: Run migrations
+  ansible.builtin.import_tasks: migration.yml
 
-- name: Install the provided Nginx site configuration
-  ansible.builtin.copy:
-    src: nginx.conf
-    dest: /etc/nginx/conf.d/django-app.conf
-    owner: root
-    group: root
-    mode: "0644"
-  notify: Reload Nginx
 
-- name: Run migrations and collect static files
-  ansible.builtin.include_tasks: migration.yml
-
-- name: Start application server
-  ansible.builtin.include_tasks: run-server.yml
+- name: Start application service
+  ansible.builtin.import_tasks: run-server.yml

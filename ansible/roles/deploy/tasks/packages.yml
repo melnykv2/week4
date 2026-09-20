@@ -1,35 +1,49 @@
 ---
-- name: Install build dependencies for the application's Python packages
-  ansible.builtin.dnf:
+- name: Install acl
+  become: true
+  ansible.builtin.apt:
     name:
-      - git
-      - gcc
-      - make
-      - "{{ python_venv_python }}-devel"
-      - libpq-devel
-      - libcurl-devel
-      - openssl-devel
-      - libffi-devel
+      - acl
+      - libpq5
     state: present
 
-- name: Ensure pip and wheel are up to date in the application virtualenv
-  ansible.builtin.pip:
-    name:
-      - pip
-      - wheel
-    state: latest
-    virtualenv: "{{ venv_dir }}"
-    virtualenv_command: "{{ python_venv_python }} -m venv"
-  become_user: "{{ app_user }}"
+- name: Create django application user
+  become: true
+  ansible.builtin.user:
+    name: "{{ app_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: true
 
-- name: Install the application's Python dependencies
-  ansible.builtin.pip:
-    requirements: "{{ app_dir }}/src/requirements.txt"
-    virtualenv: "{{ venv_dir }}"
-  become_user: "{{ app_user }}"
+- name: Create application directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0755"
 
-- name: Install Gunicorn
+- name: Clone application code
+  become: true
+  become_user: "{{ app_user }}"
+  ansible.builtin.git:
+    repo: "https://github.com/kaaalim/django-sample-app.git"
+    dest: "{{ app_dir }}"
+    version: main
+    force: true
+
+- name: Install Python dependencies
+  become: true
+  become_user: "{{ app_user }}"
+  ansible.builtin.pip:
+    requirements: "{{ app_dir }}/requirements.txt"
+    virtualenv: "{{ venv_dir }}"
+    virtualenv_command: "python3.12 -m venv"
+
+- name: Install gunicorn
+  become: true
+  become_user: "{{ app_user }}"
   ansible.builtin.pip:
     name: gunicorn
     virtualenv: "{{ venv_dir }}"
-  become_user: "{{ app_user }}"

@@ -1,28 +1,10 @@
 ---
-- name: Install web server base packages
-  ansible.builtin.dnf:
-    name: "{{ webserver_packages }}"
+- name: Install Python packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      - python3.12
+      - python3.12-dev
+      - python3.12-venv
+      - python3-pip
     state: present
-
-- name: Create application group
-  ansible.builtin.group:
-    name: "{{ app_group }}"
-    state: present
-
-- name: Create application system user
-  ansible.builtin.user:
-    name: "{{ app_user }}"
-    group: "{{ app_group }}"
-    system: true
-    create_home: true
-    home: "{{ app_dir }}"
-    shell: /sbin/nologin
-    state: present
-
-- name: Create application directory
-  ansible.builtin.file:
-    path: "{{ app_dir }}"
-    state: directory
-    owner: "{{ app_user }}"
-    group: "{{ app_group }}"
-    mode: "0755"

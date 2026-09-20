@@ -1,10 +1,10 @@
 ---
-- name: Create application environment file
+- name: Create application env file
+  become: true
   ansible.builtin.template:
     src: app.env.j2
     dest: "{{ app_dir }}/.env"
     owner: "{{ app_user }}"
-    group: "{{ app_group }}"
+    group: "{{ app_user }}"
     mode: "0600"
   no_log: true
-  notify: Restart application

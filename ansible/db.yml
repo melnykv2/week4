@@ -1,11 +1,6 @@
 ---
-- name: Gather facts from application servers
-  hosts: webservers
-  gather_facts: true
-
 - name: Configure PostgreSQL server
-  hosts: db
+  hosts: dbservers
   become: true
-  gather_facts: true
   roles:
     - postgres-setup

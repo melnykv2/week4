@@ -1,16 +1,11 @@
 ---
-- name: Install PostgreSQL server packages
-  ansible.builtin.dnf:
-    name: "{{ postgres_packages }}"
+- name: Install PostgreSQL packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+      - python3-psycopg2
+      - acl
     state: present
-
-- name: Install pip so Ansible's PostgreSQL modules can run
-  ansible.builtin.dnf:
-    name: python3-pip
-    state: present
-
-- name: Install psycopg2 for the Ansible control connection to PostgreSQL
-  ansible.builtin.pip:
-    name: psycopg2-binary
-    state: present
-    executable: pip3
+    update_cache: true
