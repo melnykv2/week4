@@ -62,8 +62,3 @@ Verify with:
 aws ssm describe-instance-information   # confirms all 3 instances are SSM-managed
 curl -I http://<alb-dns-name>/          # confirms the app is actually serving traffic
 ```
-
-## Cost note
-
-The regional NAT Gateway, 3 VPC Interface Endpoints, and the ALB all bill hourly
-while they exist. `terraform destroy` tears everything down when you're done.
