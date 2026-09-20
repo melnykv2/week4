@@ -64,7 +64,7 @@ IP) and `alb_dns_name`.
 - `Restart app service` — fires when the systemd unit or `.env` changes
 - `Reload Nginx` — fires when the nginx site config changes
 
-## Notes / lessons learned building this role
+## Notes
 
 - **`acl` package**: required on the target for the same reason as `postgres-setup`
   — tasks use `become_user: "{{ app_user }}"`, and privilege escalation to a
@@ -77,12 +77,6 @@ IP) and `alb_dns_name`.
   they race — one succeeds, the other fails with `DuplicateColumn` because the
   schema change already landed. `collectstatic`/`compress`, by contrast, must run
   on *every* host, since each instance needs its own local copy of the built assets.
-- **`ALLOWED_HOSTS=*`**: the ALB's health checker connects to each instance's
-  private IP directly (`target_type = "instance"`), sending a `Host` header that
-  will never match a fixed hostname allow-list, and instance IPs aren't stable
-  across replacement anyway. Network-level access is already restricted by security
-  groups, so this is an acceptable trade-off here, not a default to copy blindly
-  into a public-facing app without that context.
 - **`collectstatic`/`compress` step**: without it, every page using `{% compress %}`
   (i.e. nearly the whole site) 500s with `OfflineGenerationError` — django-compressor
   is configured for offline mode, so bundling must happen at deploy time, not per-request.
