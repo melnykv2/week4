@@ -1,9 +1,3 @@
-# Ansible
-
-Configures and deploys the application onto infrastructure provisioned by
-Terraform (`../terraform`). Run the playbooks in order — each depends on the
-previous one having already run.
-
 ## Playbooks
 
 | Playbook | Targets | Role run | Purpose |
@@ -22,35 +16,7 @@ previous one having already run.
 regenerate it after any infrastructure change (new instances, replaced instances,
 etc.). 
 
-Hosts connect via `ansible_connection=aws_ssm` — there is no SSH access to these
-instances at all. Group vars in the generated
-inventory (`ansible_aws_ssm_region`, `ansible_aws_ssm_bucket_name`,
-`db_password_parameter`, `django_secret_parameter`, `db_host`, `alb_dns_name`) feed
-directly into `group_vars/all.yml` and the roles.
-
-## Prerequisites (control machine — your own laptop, not the targets)
-
-```
-ansible-galaxy collection install amazon.aws community.postgresql
-pip install boto3 botocore
-```
-
-Also required: the `session-manager-plugin` binary (same one `aws ssm start-session`
-uses from the CLI) and valid AWS credentials in your shell environment — the
-`amazon.aws.ssm_parameter` lookup and the `aws_ssm` connection plugin both run using
-*your own* AWS identity, not the target instances' IAM role.
-
 ## Secrets
 
 `group_vars/all.yml` resolves `db_password` and `django_secret_key` at runtime from
-AWS SSM Parameter Store (`amazon.aws.ssm_parameter` lookup, `decrypt=true`). Nothing
-secret is ever committed to this repo — only parameter *names* (e.g.
-`/django-app/db-password`) appear in the generated inventory, and those aren't secret
-themselves.
-
-## Roles
-
-See each role's own `README.md` for details:
-- [`roles/postgres-setup`](roles/postgres-setup/README.md)
-- [`roles/webserver-setup`](roles/webserver-setup/README.md)
-- [`roles/deploy`](roles/deploy/README.md)
+AWS SSM Parameter Store (`amazon.aws.ssm_parameter` lookup, `decrypt=true`).

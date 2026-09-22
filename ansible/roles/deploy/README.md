@@ -20,13 +20,6 @@ the app behind nginx.
    `127.0.0.1:8000`), enables/starts it, and installs `files/nginx.conf` as the
    nginx site (removing the default site first) so nginx on port 80 proxies to it.
 
-## Requirements
-
-- Target OS: Debian/Ubuntu (uses `apt`, `systemd`)
-- The app's `requirements.txt` does **not** include a WSGI server or the `libpq`
-  runtime library — both are installed explicitly by this role/`webserver-setup`,
-  since the app needs them but doesn't declare them as Python dependencies.
-
 ## Role variables
 
 `defaults/main.yml`:
@@ -52,36 +45,7 @@ roles run on different hosts but must agree on the same database credentials):
 **Expected from inventory `[webservers:vars]`**: `db_host` (the DB instance's private
 IP) and `alb_dns_name`.
 
-## Files & templates
-
-- `templates/app.env.j2` — renders the app's `.env`. Sets `ALLOWED_HOSTS=*` — see
-  Notes, this is deliberate, not an oversight.
-- `files/nginx.conf` — static reverse-proxy config (80 → `127.0.0.1:8000`). Static,
-  not a template, so it must be kept in sync by hand with `app_bind_host`/`app_bind_port`.
-
 ## Handlers
 
 - `Restart app service` — fires when the systemd unit or `.env` changes
 - `Reload Nginx` — fires when the nginx site config changes
-
-## Notes
-
-- **`acl` package**: required on the target for the same reason as `postgres-setup`
-  — tasks use `become_user: "{{ app_user }}"`, and privilege escalation to a
-  non-root user needs `setfacl` to hand off temp files.
-- **`libpq5`**: the app's Postgres driver (`psycopg` v3) has no pure-Python fallback
-  without the system `libpq` shared library present — without it, migrations fail
-  with `ImportError: no pq wrapper available`.
-- **`run_once: true` on the migration task**: both app instances point at the same
-  database. Without this, Ansible runs `migrate` on both hosts in parallel, and
-  they race — one succeeds, the other fails with `DuplicateColumn` because the
-  schema change already landed. `collectstatic`/`compress`, by contrast, must run
-  on *every* host, since each instance needs its own local copy of the built assets.
-- **`collectstatic`/`compress` step**: without it, every page using `{% compress %}`
-  (i.e. nearly the whole site) 500s with `OfflineGenerationError` — django-compressor
-  is configured for offline mode, so bundling must happen at deploy time, not per-request.
-- All `command` tasks that need `.env` values (`migrate`, `collectstatic`, `compress`)
-  pass them via an explicit `environment:` block — this app does **not** auto-load
-  `.env` (no `python-dotenv`/`django-environ` call in `manage.py`), so nothing reaches
-  the process unless something injects it. Gunicorn gets it for free via the systemd
-  unit's `EnvironmentFile=` directive instead.

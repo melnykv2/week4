@@ -16,11 +16,6 @@ database and user, and opens access to instances in the VPC's private address sp
 4. Creates the application database and user (via `community.postgresql.postgresql_db`
    / `postgresql_user`, not raw SQL, for idempotency).
 
-## Requirements
-
-- Collection: `community.postgresql`
-- Target OS: Debian/Ubuntu (uses `apt`)
-
 ## Role variables
 
 Defined in `defaults/main.yml` (safe to override):
@@ -47,11 +42,3 @@ role — running on different hosts — needs the same values):
 
 - `Restart PostgreSQL` — full restart, needed for `listen_addresses` (only read at startup)
 - `Reload PostgreSQL` — live reload, sufficient for `pg_hba.conf` changes
-
-## Notes
-
-- The `acl` package is required because tasks use `become_user: postgres` (a non-root
-  account). Without `acl`/`setfacl` present, Ansible can't hand off the temporary
-  module file to that user and privilege escalation fails.
-- Intended to run against the `dbservers` inventory group, with `become: true` set at
-  the play level (see `db.yml`).
