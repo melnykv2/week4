@@ -3,5 +3,3 @@ django_secret_key: "{{ lookup('amazon.aws.ssm_parameter', django_secret_paramete
 
 postgres_db_name: djangoapp
 postgres_db_user: djangoapp
-
-allowed_hosts: "{{ alb_dns_name }}"
